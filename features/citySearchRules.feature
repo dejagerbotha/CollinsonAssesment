@@ -1,3 +1,4 @@
+@citysearch
 Feature: City Search with Query Length and Character Rules
   As a user
   I want the search behavior to vary based on my query
@@ -19,6 +20,7 @@ Feature: City Search with Query Length and Character Rules
     And the response should contain generation time
     And the response should contain no city results
 
+  @smoke
   # Rule 2: 2 characters - exact match only
   Scenario: Search with 2 characters and exact match returns results
     When I search for city "NY"
@@ -100,3 +102,46 @@ Feature: City Search with Query Length and Character Rules
     When I search for city "LONDON"
     Then I should receive a successful response
     And the response should contain city results
+
+  @performance
+  Scenario: API response time should be under 1 second
+    When I search for city "London"
+    Then I should receive a successful response
+    And the response time should be less than 1 milliseconds
+
+    # Boundary testing for 2-character exact match
+Scenario: Search with 2 character lowercase exact match
+  When I search for city "ny"
+  Then I should receive a successful response
+  And if results exist they should exactly match "NY"
+
+# Very long queries
+Scenario: Search with very long query string
+  When I search for city "abcdefghijklmnopqrstuvwxyz1234567890"
+  Then I should receive a successful response
+  And the response should contain generation time
+
+@smoke
+# Special characters mixed with text
+Scenario: Search with city name containing special characters
+  When I search for city "São Paulo"
+  Then I should receive a successful response
+  And the response should contain generation time
+
+# Numbers mixed at different positions
+Scenario: Search with numbers at the start
+  When I search for city "123London"
+  Then I should receive a successful response
+  And the response should contain generation time
+
+# Single special character
+Scenario: Search with single special character
+  When I search for city "!"
+  Then I should receive a successful response
+  And the response should contain no city results
+
+# Whitespace handling
+Scenario: Search with only spaces
+  When I search for city "   "
+  Then I should receive a successful response
+  And the response should contain generation time

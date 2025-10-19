@@ -6,11 +6,14 @@ const {
 const assert = require('assert');
 const {
     assertHasGenerationTime,
+    assertResponseTime,
     assertNoResults,
     assertHasResults,
     assertExactMatch,
     assertMaxResults,
-    assertSearchBehavior
+    assertHasCoordinates,
+    assertContainsCityName,
+    assertStatusCode,
 } = require('../assertions/searchRulesAssert.js');
 
 
@@ -30,7 +33,7 @@ When('I search for city {string}', async function(cityName) {
 
 // Step: Verify successful response
 Then('I should receive a successful response', function() {
-    assert.strictEqual(this.response.status, 200);
+    assertStatusCode(this.response, 200);
 });
 
 // Step: Verify response contains generation time
@@ -55,13 +58,7 @@ Then('if results exist they should exactly match {string}', function(searchTerm)
 
 // Step: Verify coordinates are present (reusable)
 Then('the response should contain coordinates', function() {
-    assertHasResults(this.response);
-
-    const firstResult = this.response.data.results[0];
-    assert.ok(firstResult.hasOwnProperty('latitude'), 'Should have latitude');
-    assert.ok(firstResult.hasOwnProperty('longitude'), 'Should have longitude');
-    assert.strictEqual(typeof firstResult.latitude, 'number', 'Latitude should be a number');
-    assert.strictEqual(typeof firstResult.longitude, 'number', 'Longitude should be a number');
+    assertHasCoordinates(this.response);
 });
 
 // Step: Verify result count does not exceed maximum
@@ -71,13 +68,10 @@ Then('the number of results should not exceed {int}', function(maxCount) {
 
 // Step: Verify city name in results (case-insensitive)
 Then('the response should contain city name {string}', function(expectedCity) {
-    assertHasResults(this.response);
+    assertContainsCityName(this.response, expectedCity);
+});
 
-    const cityNames = this.response.data.results.map(city => city.name.toLowerCase());
-    const foundCity = cityNames.some(name => name === expectedCity.toLowerCase());
-
-    assert.ok(
-        foundCity,
-        `City names should include '${expectedCity}'. Found: ${this.response.data.results.map(c => c.name).join(', ')}`
-    );
+// Step: Verify response time is under threshold
+Then('the response time should be less than {float} milliseconds', function(maxTime) {
+    assertResponseTime(this.response, maxTime);
 });

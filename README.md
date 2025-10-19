@@ -26,10 +26,13 @@ To run a specific feature file:
 npx cucumber-js features/citySearchRules.feature
 ```
 
-To run tests with specific tags (if implemented):
+To run tests with specific tags:
 ```bash
 npx cucumber-js --tags "@smoke"
 ```
+### Available Tags
+- `@smoke` - Runs 4 selected smoke tests
+- `@citysearch` - Runs all city search feature tests
 
 ## Project Structure
 

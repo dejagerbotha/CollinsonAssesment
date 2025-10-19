@@ -20,6 +20,23 @@ function assertHasGenerationTime(response) {
 }
 
 /**
+ * Assert that response time is under specified threshold
+ */
+function assertResponseTime(response, maxTimeMs) {
+  assert.ok(response.data, 'Response data should exist');
+  assert.ok(
+    response.data.hasOwnProperty('generationtime_ms'),
+    'Response should contain generationtime_ms'
+  );
+  
+  const responseTime = response.data.generationtime_ms;
+  assert.ok(
+    responseTime < maxTimeMs,
+    `Response time should be less than ${maxTimeMs}ms, but was ${responseTime}ms`
+  );
+}
+
+/**
  * Assert that response contains no city results
  */
 function assertNoResults(response) {
@@ -84,6 +101,49 @@ function assertMaxResults(response, maxCount = 10) {
 }
 
 /**
+ * Assert that all results contain required coordinate fields
+ */
+function assertHasCoordinates(response) {
+  assertHasResults(response);
+  
+  response.data.results.forEach((city, index) => {
+    assert.ok(
+      city.hasOwnProperty('latitude'),
+      `Result ${index} should have latitude`
+    );
+    assert.ok(
+      city.hasOwnProperty('longitude'),
+      `Result ${index} should have longitude`
+    );
+    assert.strictEqual(
+      typeof city.latitude,
+      'number',
+      `Result ${index} latitude should be a number`
+    );
+    assert.strictEqual(
+      typeof city.longitude,
+      'number',
+      `Result ${index} longitude should be a number`
+    );
+  });
+}
+
+/**
+ * Assert that results contain a specific city name (case-insensitive)
+ */
+function assertContainsCityName(response, expectedCity) {
+  assertHasResults(response);
+  
+  const cityNames = response.data.results.map(city => city.name.toLowerCase());
+  const foundCity = cityNames.some(name => name === expectedCity.toLowerCase());
+  
+  assert.ok(
+    foundCity,
+    `Results should contain '${expectedCity}'. Found: ${response.data.results.map(c => c.name).join(', ')}`
+  );
+}
+
+/**
  * Assert that search query contains only numbers
  */
 function assertOnlyNumbers(query) {
@@ -127,52 +187,28 @@ function assertQueryLengthInRange(query, min, max) {
 }
 
 /**
- * Validate search behavior based on query rules
- * - Empty or 1 char: only response time
- * - 2 chars: exact match only
- * - 3+ chars: list of cities (max 10)
- * - Numbers only: only response time
- * - Special chars only: only response time
+ * Assert that response status code matches expected
  */
-function assertSearchBehavior(query, response) {
-  const queryLength = query.length;
-  const isOnlyNumbers = /^\d+$/.test(query);
-  const isOnlySpecialChars = /^[^a-zA-Z0-9]+$/.test(query);
-  
-  // Always check for generation time
-  assertHasGenerationTime(response);
-  
-  if (queryLength === 0 || queryLength === 1) {
-    // Rule 1: Empty or 1 character - only response time
-    assertNoResults(response);
-  } else if (isOnlyNumbers) {
-    // Rule 4: Numbers only - only response time
-    assertNoResults(response);
-  } else if (isOnlySpecialChars) {
-    // Rule 5: Special characters only - only response time
-    assertNoResults(response);
-  } else if (queryLength === 2) {
-    // Rule 2: 2 characters - exact match only (or no results)
-    if (response.data.results && response.data.results.length > 0) {
-      assertExactMatch(response, query);
-    }
-  } else if (queryLength >= 3) {
-    // Rule 3: 3+ characters - return list (max 10)
-    if (response.data.results && response.data.results.length > 0) {
-      assertMaxResults(response, 10);
-    }
-  }
+function assertStatusCode(response, expectedStatus = 200) {
+  assert.strictEqual(
+    response.status,
+    expectedStatus,
+    `Expected status ${expectedStatus}, but got ${response.status}`
+  );
 }
 
 module.exports = {
   assertHasGenerationTime,
+  assertResponseTime,
   assertNoResults,
   assertHasResults,
   assertExactMatch,
   assertMaxResults,
+  assertHasCoordinates,
+  assertContainsCityName,
   assertOnlyNumbers,
   assertOnlySpecialCharacters,
   assertQueryLength,
   assertQueryLengthInRange,
-  assertSearchBehavior
+  assertStatusCode
 };
