@@ -7,84 +7,86 @@ Feature: City Search with Query Length and Character Rules
   Background: The city search API is available for use
     Given the city search API is available
 
-  # Rule 1: Empty string or 1 character - only response time
-  Scenario: Search with empty string returns only response time
-    When I search for city ""
+  # Rule 1 & 5: Empty, single character, or special characters - only response time
+  Scenario Outline: Search with <description> returns only response time
+    When I search for city "<query>"
     Then I should receive a successful response
     And the response should contain generation time
     And the response should contain no city results
 
-  Scenario: Search with 1 character returns only response time
-    When I search for city "L"
-    Then I should receive a successful response
-    And the response should contain generation time
-    And the response should contain no city results
+    Examples:
+      | query   | description                |
+      |         | empty string               |
+      | L       | 1 character                |
+      | !@#$%   | special characters         |
+      | ...     | punctuation                |
+      | !       | single special character   |
 
   @smoke
-  # Rule 2: 2 characters - exact match only
-  Scenario: Search with 2 characters and exact match returns results
-    When I search for city "NY"
+  # Rule 2: 2 characters - exact match behavior
+  Scenario Outline: Search with 2 characters for "<query>"
+    When I search for city "<query>"
     Then I should receive a successful response
     And the response should contain generation time
-    And if results exist they should exactly match "NY"
+    And if results exist they should exactly match "<expected_match>"
 
-  Scenario: Search with 2 characters and no exact match returns no results
-    When I search for city "XY"
-    Then I should receive a successful response
-    And the response should contain generation time
-    And the response should contain no city results
+    Examples:
+      | query | expected_match |
+      | NY    | NY             |
+      | ny    | NY             |
+      | XY    | XY             |
 
   # Rule 3: 3+ characters - return list (max 10)
-  Scenario: Search with 3 characters returns city list
-    When I search for city "Lon"
+  @smoke
+  Scenario Outline: Search with valid queries returns city list with coordinates
+    When I search for city "<query>"
     Then I should receive a successful response
     And the response should contain generation time
     And the response should contain city results
     And the response should contain coordinates
+
+    Examples:
+      | query  |
+      | Lon    |
+      | London |
+
+  Scenario Outline: Search results should not exceed maximum limit
+    When I search for city "<query>"
+    Then I should receive a successful response
+    And the response should contain city results
+    And the number of results should not exceed 10
+
+    Examples:
+      | query |
+      | San   |
+      | New   |
+
+  # Rule 4 & Edge cases: Numbers and mixed content
+  Scenario Outline: Search with <description> should be accepted
+    When I search for city "<query>"
+    Then I should receive a successful response
+    And the response should contain generation time
+
+    Examples:
+      | query                              | description                    |
+      | 12345                              | only numbers                   |
+      | London123                          | valid text and numbers         |
+      | 123London                          | numbers at the start           |
+      | abcdefghijklmnopqrstuvwxyz1234567890 | very long query string      |
+      |                                    | only spaces                    |
+      | São Paulo                          | special characters in name     |
 
   @smoke
-  Scenario: Search with 4+ characters returns city list
-    When I search for city "London"
-    Then I should receive a successful response
-    And the response should contain generation time
-    And the response should contain city results
-    And the response should contain coordinates
-
-  Scenario: Search results should never exceed 10 cities
-    When I search for city "San"
+  # Case sensitivity and special queries
+  Scenario Outline: Search with different cases for "<query>" returns results
+    When I search for city "<query>"
     Then I should receive a successful response
     And the response should contain city results
-    And the number of results should not exceed 10
 
-  Scenario: Search with long query returns limited results
-    When I search for city "New"
-    Then I should receive a successful response
-    And the number of results should not exceed 10
-
-  # Rule 4: Numbers only - only response time
-  Scenario: Search with only numbers should be accepted
-    When I search for city "12345"
-    Then I should receive a successful response
-    And the response should contain generation time
-
-  # Rule 5: Special characters only - only response time
-  Scenario: Search with special characters returns only response time
-    When I search for city "!@#$%"
-    Then I should receive a successful response
-    And the response should contain generation time
-    And the response should contain no city results
-
-  Scenario: Search with punctuation returns only response time
-    When I search for city "..."
-    Then I should receive a successful response
-    And the response should contain generation time
-    And the response should contain no city results
-
-  # Edge cases
-  Scenario: Search with mix of valid text and numbers
-    When I search for city "London123"
-    Then I should receive a successful response
-    And the response should contain generation time
+    Examples:
+      | query  |
+      | london |
+      | LONDON |
 
   @smoke
   Scenario: Search with valid city name containing spaces
@@ -93,55 +95,8 @@ Feature: City Search with Query Length and Character Rules
     And the response should contain city results
     And the response should contain city name "New York"
 
-  Scenario: Search with lowercase returns results
-    When I search for city "london"
-    Then I should receive a successful response
-    And the response should contain city results
-
-  Scenario: Search with uppercase returns results
-    When I search for city "LONDON"
-    Then I should receive a successful response
-    And the response should contain city results
-
   @performance
-  Scenario: API response time should be under 5 miliseconds
+  Scenario: API response time should be under 5 milliseconds
     When I search for city "London"
     Then I should receive a successful response
     And the response time should be less than 5 milliseconds
-
-  # Boundary testing for 2-character exact match
-  Scenario: Search with 2 character lowercase exact match
-    When I search for city "ny"
-    Then I should receive a successful response
-    And if results exist they should exactly match "NY"
-
-  # Very long queries
-  Scenario: Search with very long query string
-    When I search for city "abcdefghijklmnopqrstuvwxyz1234567890"
-    Then I should receive a successful response
-    And the response should contain generation time
-
-  @smoke
-  # Special characters mixed with text
-  Scenario: Search with city name containing special characters
-    When I search for city "São Paulo"
-    Then I should receive a successful response
-    And the response should contain generation time
-
-  # Numbers mixed at different positions
-  Scenario: Search with numbers at the start
-    When I search for city "123London"
-    Then I should receive a successful response
-    And the response should contain generation time
-
-  # Single special character
-  Scenario: Search with single special character
-    When I search for city "!"
-    Then I should receive a successful response
-    And the response should contain no city results
-
-  # Whitespace handling
-  Scenario: Search with only spaces
-    When I search for city "   "
-    Then I should receive a successful response
-    And the response should contain generation time
